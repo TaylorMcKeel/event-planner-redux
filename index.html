@@ -1,0 +1,164 @@
+<html>
+  <head>
+    <script
+      src="https://unpkg.com/react@16/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.4/redux.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js"></script>
+    <style>
+      body {
+        font-family: verdana;
+      }
+      nav {
+        display: flex;
+        justify-content: space-around;
+      }
+      a {
+        padding: 0.5rem;
+      }
+      .active {
+        background-color: tomato;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { createStore, combineReducers } = Redux;
+      const { HashRouter, Link, Route } = ReactRouterDOM;
+
+      const usersReducer = (state = [], action) => {
+        // if (action.type === "SET_USERS") {
+        //   state = action.users;
+        // } else if (action.type === "ADD_USER") {
+        //   state = [...state, action.user];
+        // } else if (action.type === "REMOVE_USER") {
+        //   state = state.filter(user => user.id !== action.user.id);
+        // } else if (action.type === "UPDATE_USER") {
+        //   state = state.map(user =>
+        //     user.id === action.user.id ? action.user : user
+        //   );
+        // }
+        return state;
+      };
+      const reducer = combineReducers({
+        events: (state = [], action) => {
+          if (action.type === "SET_EVENTS") {
+            state = action.event;
+          } else if (action.type === "ADD_EVENTS") {
+            state = [...state, action.event];
+          } else if (action.type === "REMOVE_EVENTS") {
+            state = state.filter(event => action.event.id !== event.id);
+          }
+          return state;
+        }
+      });
+
+      const store = createStore(reducer);
+
+      const connect = Component => {
+        class Connected extends React.Component {
+          constructor() {
+            super();
+            this.state = store.getState();
+          }
+          componentWillUnmount() {
+            this.unsubscribe();
+          }
+          componentDidMount() {
+            this.unsubscribe = store.subscribe(() =>
+              this.setState(store.getState())
+            );
+          }
+          render() {
+            return <Component {...this.state} {...this.props} />;
+          }
+        }
+        return Connected;
+      };
+
+      const fetchEvents = async () => {
+        await axios.get("/api/events/").then(response =>
+          store.dispatch({
+            type: "SET_EVENTS",
+            event: response.data
+          })
+        );
+        return;
+      };
+
+      const createEvent = async () => {
+        await axios.post("/api/events").then(response =>
+          store.dispatch({
+            type: "ADD_EVENTS",
+            event: response.data
+          })
+        );
+      };
+
+      const deleteEvent = async ev => {
+        await axios.delete("/api/events", ev.target).then(response =>
+          store.dispatch({
+            type: "DELETE_EVENTS",
+            event: response.data
+          })
+        );
+      };
+
+      const Nav = connect(({ events }) => {
+        return (
+          <nav>
+            <Link to="/">Home</Link>
+            <Link to="/events">Events ({events.length})</Link>
+          </nav>
+        );
+      });
+
+      const Home = connect(({ events }) => {
+        return `You've got ${events.length} events!!`;
+      });
+
+      const Events = connect(({ events }) => {
+        return (
+          <ul>
+            <button onClick={() => createEvent()}>Create</button>
+            {events.map(event => (
+              <div>
+                <li key={event.id}> {event.name}</li>
+                <button onClick={ev => deleteEvent(ev)}> Delete</button>
+              </div>
+            ))}
+          </ul>
+        );
+      });
+
+      class App extends React.Component {
+        componentDidMount() {
+          fetchEvents();
+        }
+        render() {
+          return (
+            <HashRouter>
+              <h1>Acme Event Planner With Redux</h1>
+              <Route component={Nav} />
+              <Route path="/" component={Home} exact />
+              <Route path="/events" component={Events} />
+            </HashRouter>
+          );
+        }
+      }
+
+      ReactDOM.render(<App />, document.querySelector("#root"));
+    </script>
+  </body>
+</html>
